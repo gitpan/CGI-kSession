@@ -1,5 +1,5 @@
 package CGI::kSession;
-$CGI::kSession::VERSION = '0.5.2';
+$CGI::kSession::VERSION = '0.5.3';
 use strict;
 
 sub new {
@@ -198,23 +198,98 @@ sub newID {
 #############################
 
 1;
+
 __END__
 
 =head1 NAME
-CGI::kSession - sessions manager
-    
+
+CGI::kSession - sessions manager for CGI
+
+=head1 VERSION
+
+kSession.pm v 0.5.3
+
+=over 4
+
+=item Recent Changes:
+
+	0.5.3
+	- updated the documentation
+	0.5.2
+	- fix value containing '='
+	0.5.1
+	- ugly fix with existing session
+	0.5 
+	- lifetime
+	- path,lifetime as arguments with new
+
+=back
+
 =head1 DESCRIPTION
 
-kSession.pm v 0.5.2 by Marcin Krzyzanowski <krzak at linux.net.pl> 
-http://krzak.linux.net.pl/
-License : GPL
-    
-You can use it everywhere you need sessions.
-Use files to handle sessions.
-Syntax is little bit similar to session as you known from php.
+This module can be used anywhere you need sessions. As a session management module, it uses files with a configurable lifetime to handle your session data. For those of you familiar with PHP, you will notice that the session syntax is a little bit similar.
 
+=head1 METHODS
 
-=head1 EXAMPLE
+The following public methods are availible:
+
+=over 4
+
+=item $s = new CGI::kSession();
+
+The constructor, this starts the ball rolling. It can take the following hash-style parameters:
+
+	lifetime - 	how long the session lasts, in seconds
+	path	 -	the directory where you want to store your session files
+	id	 -	if you want to give the session a non-random name, use this parameter as well
+
+=item $s->start();
+
+This creates a session or resumes an old one (could be used in conjunction with something like HTTP::Cookie). This will return '1' if this is a new session, and '0' if it's resuming an old one. If you defined no values in the 'new()' call, then the session will start with a default lifetime of 600 seconds, a path of /var/tmp, and a random string for an id.
+
+=item $s->save_path();
+
+Save the session path or, without an argument, return the current session path. Used with an argument, this performs the same thing as the 'path' parameter in the constructor.
+
+=item $s->id();
+
+If the session id exists, this will return the current session id - useful if you want to maintain state with a cookie! If you pass a parameter, it acts the same as new( id => 'some_session_name'), i.e., it creates a session with that id.
+
+=item $s->register();
+
+This takes a string as an arguement and basically tells the session object this: "Hey, this is a variable I'm thinking about associating with some data down the road. Hang onto it for me, and I'll let you know what I'm going to do with it". Once you register a variable name here, you can use it in 'set()' and 'get()'.
+
+=item $s->is_registered();
+
+Check to see if the function is registered. Returns '1' for true, '0' for false.
+
+=item $s->unregister();
+
+Tell the session jinn that you no longer want to use this variable, and it can go back in the bottle (the variable, not the jinn... you still want the jinn around until you call 'destroy()').
+
+=item $s->set();
+
+This is where you actually define your variables (once you have "reserved" them using 'register()'). This method takes two arguments: the first is the name of the variable that you registerd, and the second is the info you want to store in the variable.
+
+=item $s->get();
+
+This method allows you to access the data that you have saved in a session - just pass it the name of the variable that you 'set()'.
+
+=item $s->unset();
+
+Calling this method will wipe all the variables stored in your session.
+
+=item $s->destroy();
+
+This method deletes the session file, destroys all the evidence, and skips bail.
+
+=back
+
+=head1 EXAMPLES
+
+=over 4
+
+=item Session creation and destruction
 
  use strict;
  use CGI;
@@ -245,5 +320,74 @@ Syntax is little bit similar to session as you known from php.
     
     $s->unset(); # unregister all variables
     $s->destroy(); # delete session with this ID
+
+I<Marcin Krzyzanowski>
+
+=item Sessions, URLs, and Cookies
+
+ use strict;
+ use CGI;
+ use CGI::Carp qw(fatalsToBrowser);
+ use CGI::kSession;
+ use CGI::Cookie;
+
+    my $cgi = new CGI;
+    my $last_sid = $cgi->param("SID");
+    my $c = new CGI::Cookie(-name=>'SID',-value=>$last_sid);
+    my ($id, $key, $value);
+
+    my $s = new CGI::kSession(path=>"/tmp/");
+
+    print $cgi->header(-cookie=>$c);
+
+    print $cgi->start_html();
+
+    if ($last_sid) {
+        # note: the following I used for mozilla - your mileage may vary
+        my $cookie_sid = (split/[=;]/, (fetch CGI::Cookie)->{SID})[1];
+
+        if ($cookie_sid) {
+            print "<b>We are now reading from the cookie:</b><p>";
+            $id = $s->id($cookie_sid);
+            $s->start($cookie_sid);
+            print "The cookie's id: $cookie_sid<br>";
+            print "Here's the test_value: ".$s->get("test_key")."<br>";
+        } else {
+            print "<b>We are now reading from the URL parameters:</b><p>";
+            $id = $s->id($last_sid);
+            $s->start($last_sid);
+            print "Last page's id: $last_sid<br>";
+            print "Here's the test_value: ".$s->get("test_key")."<br>";
+        }
+    } else {
+        print "<b>Here we will set the session values:</b><p>";
+        $s->start();
+        $id = $s->id();
+        print "My session id: $id<br>";
+        $s->register("test_key");
+        $s->set("test_key", "Oh, what a wonderful test_value this is...");
+        print "Here's the test_value: ".$s->get("test_key")."<br>";
+    }
+
+    # note: the first click will set the session id from the URL the
+    #           second click will retrieve a value from the cookie
+
+    print "<a href=".(split/\//,$0)[-1]."?SID=$id>Next page</a>";
+    print $cgi->end_html();
+
+I<Duncan McGreggor>
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright 2000-2002 Marcin Krzyzanowski
+
+=head1 AUTHOR
+
+Marcin Krzyzanowski <krzak at linux.net.pl>
+http://krzak.linux.net.pl/
+
+Duncan McGreggor <oubiwann at yahoo.com>
 
 =cut
