@@ -1,0 +1,7 @@
+0.5.2
+- fix value containing '='
+0.5.1
+- ugly fix with existing session
+0.5 
+- lifetime
+- path,lifetime as arguments with new
